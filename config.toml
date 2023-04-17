@@ -1,4 +1,4 @@
-baseurl = "http://blog.discimy.github.io"
+baseurl = "http://discimy.github.io/blog"
 title = "Discrimy Blog"
 theme = "hugo-coder"
 languagecode = "en"
