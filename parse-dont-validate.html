@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="generator" content="Pelican" />
+        <title>Parse, Don't Validate</title>
+        <link rel="stylesheet" href="https://discrimy.github.io/theme/css/main.css" />
+        <link href="https://discrimy.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Bespealex's Blog Atom Feed" />
+        <meta name="description" content="Parse, don't validate That the difference between parsing and validation? Well, let's give definitions for both of them. - Parsing - converting..." />
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://discrimy.github.io/">Bespealex's Blog</a></h1>
+                <nav><ul>
+                    <li><a href="https://discrimy.github.io/pages/about-me.html">About me</a></li>
+                    <li class="active"><a href="https://discrimy.github.io/category/misc.html">misc</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://discrimy.github.io/parse-dont-validate.html" rel="bookmark"
+           title="Permalink to Parse, Don't Validate">Parse, Don't Validate</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2023-05-08T20:27:18+03:00">
+                Published: Пн 08 мая 2023
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://discrimy.github.io/author/alexander-bespalov.html">Alexander Bespalov</a>
+        </address>
+<p>In <a href="https://discrimy.github.io/category/misc.html">misc</a>.</p>
+
+</footer><!-- /.post-info -->      <h1>Parse, don't validate</h1>
+<p>That the difference between parsing and validation? Well, let's give definitions for both of them.
+- Parsing - converting some less structural data to some more structures. For example, converting <code>str</code> to <code>int</code> or json via <code>json.loads</code> it a parsing, not every <code>string</code> can be converted to them.
+- Validation - checking some data is in some subset of valid format. For example, validation <code>str</code> is a number can be achived by checking that every character is a digit.</p>
+<p>But what the significant difference between using one or another?</p>
+<h2>Preserving validation information</h2>
+<p>Parsing means converting less structured information to more structured. It means parsing preserves that the data has correct format. Validation just returns the answer to question "Is the provided data has correct format or not?", but the data doesn't change.</p>
+<p>We can look at this in terms of proof. If we parsed some raw data, then the parsed instance is a proof that the data is correct. If we validate some raw data, then the proof is implicit, there'is no way to express it in code.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># returns True if phone is valid, but phone itself will be unchanged</span>
+<span class="k">def</span> <span class="nf">is_phone</span><span class="p">(</span><span class="n">raw</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="o">...</span>
+<span class="k">if</span> <span class="n">is_phone</span><span class="p">(</span><span class="n">phone</span><span class="p">):</span>
+    <span class="o">...</span>
+
+<span class="c1"># `Phone` instance preserves that provided string is actual a phone number</span>
+<span class="k">class</span> <span class="nc">Phone</span><span class="p">(</span><span class="nb">str</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_is_phone</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+<span class="n">phone</span> <span class="o">=</span> <span class="n">Phone</span><span class="p">(</span><span class="n">phone</span><span class="p">)</span>
+<span class="o">...</span>
+</code></pre></div>
+
+<h2>Sources</h2>
+<ul>
+<li><a href="https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/">Original article, gives explanations on context of Haskell</a></li>
+<li><a href="https://www.reddit.com/r/typescript/comments/zm9st3/comment/j0bbpa7/?utm_source=share&amp;utm_medium=web2x&amp;context=3">Parsed value is a proof (comment on Reddit)</a></li>
+</ul>
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>links</h2>
+                        <ul>
+                            <li><a href="https://getpelican.com/">Pelican</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://discrimy.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>

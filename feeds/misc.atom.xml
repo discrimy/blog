@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Bespealex's Blog - misc</title><link href="https://discrimy.github.io/" rel="alternate"></link><link href="https://discrimy.github.io/feeds/misc.atom.xml" rel="self"></link><id>https://discrimy.github.io/</id><updated>2024-08-19T00:00:00+03:00</updated><entry><title>Next/Previous model in Django ORM</title><link href="https://discrimy.github.io/nextprevious-model-in-django-orm.html" rel="alternate"></link><published>2024-08-19T00:00:00+03:00</published><updated>2024-08-19T00:00:00+03:00</updated><author><name>Alexander Bespalov</name></author><id>tag:discrimy.github.io,2024-08-19:/nextprevious-model-in-django-orm.html</id><summary type="html">&lt;h2&gt;Task&lt;/h2&gt;
+&lt;p&gt;I had a task: there is a table of posts &lt;code&gt;Post&lt;/code&gt; with dynamic ordering based on user's input (newest first, by views count, etc.). I need to add button &lt;code&gt;Next&lt;/code&gt; and &lt;code&gt;Previous&lt;/code&gt; button on each posts' page. Ordering must be preserved between list view and serfing between posts.&lt;/p&gt;
+&lt;h2&gt;Solution …&lt;/h2&gt;</summary><content type="html">&lt;h2&gt;Task&lt;/h2&gt;
+&lt;p&gt;I had a task: there is a table of posts &lt;code&gt;Post&lt;/code&gt; with dynamic ordering based on user's input (newest first, by views count, etc.). I need to add button &lt;code&gt;Next&lt;/code&gt; and &lt;code&gt;Previous&lt;/code&gt; button on each posts' page. Ordering must be preserved between list view and serfing between posts.&lt;/p&gt;
+&lt;h2&gt;Solution&lt;/h2&gt;
+&lt;p&gt;Preserving ordering between pages of list of posts and particular posts is trivial: just preserve query param of ordering in links. &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# Link to list of pages&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;/posts/?order=newest&amp;quot;&lt;/span&gt;
+&lt;span class="c1"&gt;# Link to post&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;/posts/123/?order=newest&amp;quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Getting next and previous models is trickier.&lt;/p&gt;
+&lt;h3&gt;Return to ~~monkey~~ SQL&lt;/h3&gt;
+&lt;p&gt;It's good to solve a difficult problem in Django ORM by solving it in SQL before. Google leads me to the solution with using window functions. I won't explain what window functions are and how to use them (there are plenty of posts in the Internet and there're a way better at this). The part is needed for me are functions &lt;code&gt;Lag&lt;/code&gt; and &lt;code&gt;Lead&lt;/code&gt;. 
+IDs are enough for me (I don't actually need next/prev models themselves, just IDs to build links).&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;-- I use PostgreSQL btw&lt;/span&gt;
+&lt;span class="k"&gt;SELECT&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;LAG&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;OVER&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="k"&gt;ORDER&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;BY&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;dt_created&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;DESC&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;as&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;prev_id&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;LEAD&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;OVER&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="k"&gt;ORDER&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;BY&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;dt_created&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;DESC&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;as&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;next_id&lt;/span&gt;
+&lt;span class="k"&gt;FROM&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;posts&lt;/span&gt;
+&lt;span class="k"&gt;WHERE&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;ilike&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="ss"&gt;&amp;quot;%experiment%&amp;quot;&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;AND&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;123&lt;/span&gt;
+&lt;span class="k"&gt;ORDER&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;BY&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;dt_created&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;DESC&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;But there's a problem: &lt;code&gt;id = 123&lt;/code&gt; clause removes all other rows from the result, and &lt;code&gt;LEAD&lt;/code&gt; and &lt;code&gt;LAG&lt;/code&gt; window functions returns nothing. The solution is to query next/prev ids in separate query and attach it later.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;WITH&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="ss"&gt;&amp;quot;cte&amp;quot;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;AS&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;SELECT&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="n"&gt;LAG&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;OVER&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="k"&gt;ORDER&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;BY&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;dt_created&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;DESC&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;as&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;prev_id&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="n"&gt;LEAD&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;OVER&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="k"&gt;ORDER&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;BY&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;dt_created&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;DESC&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;as&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;next_id&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;FROM&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;posts&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;WHERE&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;ILIKE&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="ss"&gt;&amp;quot;%experiment%&amp;quot;&lt;/span&gt;
+&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="k"&gt;SELECT&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;cte&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;prev_id&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;as&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;prev_id&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;cte&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;next_id&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;as&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;next_id&lt;/span&gt;
+&lt;span class="k"&gt;FROM&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;posts&lt;/span&gt;
+&lt;span class="k"&gt;INNER&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;JOIN&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;cte&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;ON&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;posts&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;cte&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;
+&lt;span class="k"&gt;WHERE&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;ILIKE&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="ss"&gt;&amp;quot;%experiment%&amp;quot;&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;AND&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;posts&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;123&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Great, it returns the result, so we need to migrate the solution to Django ORM.&lt;/p&gt;
+&lt;h3&gt;Django ORM way&lt;/h3&gt;
+&lt;p&gt;We used &lt;code&gt;CTE&lt;/code&gt; to write a SQL query, so we need them in Django ORM too. Hopefully there'is a package &lt;a href="https://github.com/dimagi/django-cte"&gt;&lt;code&gt;django-cte&lt;/code&gt;&lt;/a&gt; to help us! Also I want solution to be composeable with the rest of QuerySet's methods, so it will be a method too.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;django_cte&lt;/span&gt;
+
+&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;PostQuerySet&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;django_cte&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;CTEQuerySet&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;Post&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;]):&lt;/span&gt;
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;with_prev_next_ids&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Self&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;queryset_cte&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;annotate&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+            &lt;span class="n"&gt;prev_id&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;Window&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;expression&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;Lag&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;id&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt; &lt;span class="n"&gt;order_by&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;query&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;order_by&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt;
+            &lt;span class="n"&gt;next_id&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;Window&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;expression&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;Lead&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;id&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt; &lt;span class="n"&gt;order_by&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;query&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;order_by&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt;
+        &lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;order_by&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;  &lt;span class="c1"&gt;# empty order_by() removes ordering because it&amp;#39;s obsolete in CTE query part&lt;/span&gt;
+        &lt;span class="n"&gt;cte&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;django_cte&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;With&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;queryset_cte&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;values&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;id&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;prev_id&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;next_id&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;  &lt;span class="c1"&gt;# select ids only&lt;/span&gt;
+        &lt;span class="n"&gt;queryset&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;
+            &lt;span class="n"&gt;cte&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;join&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;id&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;cte&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;col&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;  &lt;span class="c1"&gt;# `INNER JOIN` part&lt;/span&gt;
+            &lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;with_cte&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cte&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;  &lt;span class="c1"&gt;# `WITH &amp;quot;cte&amp;quot; (...)` part&lt;/span&gt;
+            &lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;annotate&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+                &lt;span class="n"&gt;prev_id&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;cte&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;col&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;prev_id&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                &lt;span class="n"&gt;next_id&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;cte&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;col&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;next_id&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+            &lt;span class="p"&gt;)&lt;/span&gt;
+        &lt;span class="p"&gt;)&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;queryset&lt;/span&gt;
+
+&lt;span class="c1"&gt;# Later in your code&lt;/span&gt;
+
+&lt;span class="n"&gt;queryset&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Posts&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;objects&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;all&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;span class="c1"&gt;# Apply ordering first&lt;/span&gt;
+&lt;span class="n"&gt;queryset&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;queryset&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;order_by&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;-dt_created&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="c1"&gt;# Attach next/prev ids later&lt;/span&gt;
+&lt;span class="n"&gt;queryset&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;queryset&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;with_prev_next_ids&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;span class="c1"&gt;# (Optional) Get 1 object only, ignore if you need list of objects with ids&lt;/span&gt;
+&lt;span class="n"&gt;post&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;queryset&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nb"&gt;id&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;123&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Next/Prev button work now, everyone is happy.&lt;/p&gt;
+&lt;h2&gt;Optimization&lt;/h2&gt;
+&lt;p&gt;Next/Prev ID calculation can be a hard task for DB and leads to slow query. But there is a trick: usually (90%) post views do not use these buttons, so it would be better to postpone calculation of next/prev IDs from post's page loading to click on the buttons.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;User loads page with post, both buttons leads to &lt;code&gt;/posts/&amp;lt;next/prev&amp;gt;/?&amp;lt;query&amp;gt;&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;User clicks a button&lt;/li&gt;
+&lt;li&gt;Server performs actual filtering and ordering and gets next/prev ID&lt;/li&gt;
+&lt;li&gt;Server replies with redirect to next/prev post using retrieved ID&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Post page is fast as it was before, next/prev buttons works. Everyone is more happier. Well, there is a downside: you cannot disable next/prev button when there's no next or prev post because you don't you it on post load stage. &lt;/p&gt;</content><category term="misc"></category></entry><entry><title>What to Read 2</title><link href="https://discrimy.github.io/what-to-read-2.html" rel="alternate"></link><published>2024-05-21T08:58:10+03:00</published><updated>2024-05-21T08:58:10+03:00</updated><author><name>Alexander Bespalov</name></author><id>tag:discrimy.github.io,2024-05-21:/what-to-read-2.html</id><summary type="html">&lt;h1&gt;What to read #2&lt;/h1&gt;
+&lt;p&gt;List of links of interest materials to read with short description.&lt;/p&gt;
+&lt;h2&gt;&lt;a href="https://olano.dev/blog/code-is-run-more-than-read"&gt;Code is run more than read&lt;/a&gt;&lt;/h2&gt;
+&lt;p&gt;Don't forget about priorities in software development.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;user &amp;gt; ops &amp;gt; dev&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;biz &amp;gt; ops &amp;gt; dev&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;biz ≹ user&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2&gt;&lt;a href="https://adamj.eu/tech/2021/05/07/python-type-hints-use-object-instead-of-any/"&gt;Use &lt;code&gt;object&lt;/code&gt; instead of &lt;code&gt;Any&lt;/code&gt;&lt;/a&gt;&lt;/h2&gt;
+&lt;p&gt;In Python typing, &lt;code&gt;Any&lt;/code&gt; &lt;strong&gt;disables&lt;/strong&gt; checks. If you don't …&lt;/p&gt;</summary><content type="html">&lt;h1&gt;What to read #2&lt;/h1&gt;
+&lt;p&gt;List of links of interest materials to read with short description.&lt;/p&gt;
+&lt;h2&gt;&lt;a href="https://olano.dev/blog/code-is-run-more-than-read"&gt;Code is run more than read&lt;/a&gt;&lt;/h2&gt;
+&lt;p&gt;Don't forget about priorities in software development.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;user &amp;gt; ops &amp;gt; dev&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;biz &amp;gt; ops &amp;gt; dev&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;biz ≹ user&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2&gt;&lt;a href="https://adamj.eu/tech/2021/05/07/python-type-hints-use-object-instead-of-any/"&gt;Use &lt;code&gt;object&lt;/code&gt; instead of &lt;code&gt;Any&lt;/code&gt;&lt;/a&gt;&lt;/h2&gt;
+&lt;p&gt;In Python typing, &lt;code&gt;Any&lt;/code&gt; &lt;strong&gt;disables&lt;/strong&gt; checks. If you don't care about type of variable (for example passing &lt;code&gt;*args, **kwargs&lt;/code&gt; to &lt;code&gt;super().method(*args, **kwargs)&lt;/code&gt; and do not use them youself), use &lt;code&gt;object&lt;/code&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;example&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;Widget&lt;/span&gt;
+
+
+&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;BlueWidget&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;Widget&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="fm"&gt;__init__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;object&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;blueness&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;50&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;kwargs&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;object&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="nb"&gt;super&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="fm"&gt;__init__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;kwargs&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+        &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;blueness&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;blueness&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2&gt;&lt;a href="https://www.inngest.com/blog/python-errors-as-values"&gt;Python errors as values&lt;/a&gt;&lt;/h2&gt;
+&lt;p&gt;Throwing exceptions as error handling is implicit for caller. Use union types with exception as function result type to explicitly define errors the function can return.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# Define a function that returns a union of a User and an error&lt;/span&gt;
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;get_user&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;user_id&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;User&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="ne"&gt;Exception&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="n"&gt;rows&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;users&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;find&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;user_id&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;user_id&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="nb"&gt;len&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;rows&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="ne"&gt;Exception&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;user not found&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;rows&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;rename_user&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;user_id&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;User&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="ne"&gt;Exception&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="c1"&gt;# Consume the function&lt;/span&gt;
+    &lt;span class="n"&gt;user&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;get_user&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;user_id&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="nb"&gt;isinstance&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;user&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="ne"&gt;Exception&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;user&lt;/span&gt;
+    &lt;span class="n"&gt;user&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;user&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;</content><category term="misc"></category></entry><entry><title>How to setup secure remote storage from cloud storage (guide)</title><link href="https://discrimy.github.io/how-to-setup-secure-remote-storage-from-cloud-storage-guide.html" rel="alternate"></link><published>2023-08-14T23:23:00+03:00</published><updated>2023-08-14T23:23:00+03:00</updated><author><name>Alexander Bespalov</name></author><id>tag:discrimy.github.io,2023-08-14:/how-to-setup-secure-remote-storage-from-cloud-storage-guide.html</id><summary type="html">&lt;h1&gt;How to setup secure remote storage from cloud storage (guide)&lt;/h1&gt;
+&lt;p&gt;I thought about secure encrypted file storage for a long time. Most cloud providers doesn't encrypt file, so that means your files are not only yours but provider's too. Some providers which states they store files encrypted (like Mega) have …&lt;/p&gt;</summary><content type="html">&lt;h1&gt;How to setup secure remote storage from cloud storage (guide)&lt;/h1&gt;
+&lt;p&gt;I thought about secure encrypted file storage for a long time. Most cloud providers doesn't encrypt file, so that means your files are not only yours but provider's too. Some providers which states they store files encrypted (like Mega) have bad CLI tools for automation and Android applicatons.&lt;/p&gt;
+&lt;p&gt;I wrote down criterias which ideal solution must satisfy:
+- Client-side encryption of files (server mustn't has access to original files)
+- Standart API like WebDAV and SFTP
+- Large volume (hunders of GB)
+- Reliably, in ideal case provider must manage it by itself
+- Fully open source (because I don't believe in tales)&lt;/p&gt;
+&lt;p&gt;I found great tool named &lt;a href="https://rclone.org"&gt;rclone&lt;/a&gt; and there was a sale for Yandex.Disk 2TB disk, so I had everything I needed to make the storage.&lt;/p&gt;
+&lt;h2&gt;How it works&lt;/h2&gt;
+&lt;p&gt;&lt;img alt="" src="/images/secure-storage-guide_how-it-works.svg"&gt;&lt;/p&gt;
+&lt;p&gt;Yandex.Disk (or any provider you like, rclone supports a lot of providers) stores encrypted files. Personal server hosts rclone server which serves as proxy to Yandex.Disk and handles encryption and descryption on fly. All clients connect to this server via standart protocols like WebDAV.&lt;/p&gt;
+&lt;h2&gt;How to setup&lt;/h2&gt;
+&lt;h3&gt;Setup encryption on top of cloud&lt;/h3&gt;
+&lt;ol&gt;
+&lt;li&gt;Run &lt;code&gt;rclone config&lt;/code&gt; and create new remote (remote is how rclone names storages) for your cloud provider, let's name it as &lt;code&gt;external&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Create new remote with type &lt;code&gt;crypt&lt;/code&gt;, as &lt;code&gt;Option remote&lt;/code&gt; set &lt;code&gt;external:some-folder&lt;/code&gt; (directory must be empty), set &lt;code&gt;password&lt;/code&gt; and &lt;code&gt;password2&lt;/code&gt;, let's name this remote as &lt;code&gt;external-encr&lt;/code&gt;. Save config file (you can find it with &lt;code&gt;rclone config file&lt;/code&gt;) and save it to secure place, because without it you cannot restore files.&lt;/li&gt;
+&lt;li&gt;Check&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;rclone copy file.jpg external-encr:file.jpg&lt;/code&gt; - copy file to encrypted remote&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;rclone ls external-encr:&lt;/code&gt; - list files inside remote&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;rclone copy external-encr:file.jpg file-copy.jpg&lt;/code&gt; - download file from remote&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3&gt;Setup WebDAV and SFTP servers&lt;/h3&gt;
+&lt;p&gt;To interact with storage via standart protocols we setup rclone server. Choose protocol by their speed, WebDAV is better for me.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# Run WebDAV server on port 8080, authenticate user `username` with password `password`&lt;/span&gt;
+rclone&lt;span class="w"&gt; &lt;/span&gt;serve&lt;span class="w"&gt; &lt;/span&gt;webdav&lt;span class="w"&gt; &lt;/span&gt;external-encr:&lt;span class="w"&gt; &lt;/span&gt;--addr&lt;span class="w"&gt; &lt;/span&gt;:8080&lt;span class="w"&gt; &lt;/span&gt;--user&lt;span class="w"&gt; &lt;/span&gt;username&lt;span class="w"&gt; &lt;/span&gt;--pass&lt;span class="w"&gt; &lt;/span&gt;password
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Replace &lt;code&gt;webdav&lt;/code&gt; with &lt;code&gt;sftp&lt;/code&gt; if SFTP is needed. Also consider to add:
+- &lt;code&gt;--vfs-cache-mode full&lt;/code&gt; - use cache
+- &lt;code&gt;--vfs-cache-max-size 1G&lt;/code&gt; - set cache max size&lt;/p&gt;
+&lt;p&gt;It's a bad practice to set user password in command because command will be saved to your history. It's better to set them via environment variables &lt;code&gt;RCLONE_USER&lt;/code&gt; and &lt;code&gt;RCLONE_PASS&lt;/code&gt;.&lt;/p&gt;
+&lt;h2&gt;How to use&lt;/h2&gt;
+&lt;h3&gt;CLI&lt;/h3&gt;
+&lt;p&gt;You can use &lt;code&gt;rclone&lt;/code&gt; itself to interact with your storage using &lt;code&gt;external-encr&lt;/code&gt; remote for direct access or create new remote with type &lt;code&gt;webdav&lt;/code&gt; to your proxy server to interact via it.&lt;/p&gt;
+&lt;h3&gt;Android&lt;/h3&gt;
+&lt;p&gt;There is good file manager &lt;a href="https://play.google.com/store/apps/details?id=pl.solidexplorer2&amp;amp;pli=1"&gt;Solid Explorer&lt;/a&gt; (it's partially paid, but it's worth it), and this app can connect to WebDAV or SFTP server.&lt;/p&gt;
+&lt;h3&gt;Linux (KDE)&lt;/h3&gt;
+&lt;p&gt;KDE Dolphin has good WebDAV support.&lt;/p&gt;
+&lt;h3&gt;Windows&lt;/h3&gt;
+&lt;p&gt;I don't managed to find good open source file manager with WebDAV support, and builtin File Explorer behaves strangely. But &lt;code&gt;rclone&lt;/code&gt; can mount remote as a drive! You can write simple script to run command to mount and use it as local storage.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="gh"&gt;#&lt;/span&gt; Mount storage as drive N:
+&lt;span class="gh"&gt;#&lt;/span&gt; It&amp;#39;s recommended to add caching (--vfs-*)
+rclone mount external-encr: n:
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3&gt;Web&lt;/h3&gt;
+&lt;p&gt;&lt;a href="https://www.filestash.app"&gt;Filestash&lt;/a&gt; is good web application to access WebDAV server. You can self-host it on the same server and connect to storage via Filestash, I use it on desktop.&lt;/p&gt;
+&lt;h2&gt;Known issues&lt;/h2&gt;
+&lt;p&gt;Listing folder with a lot of files inside (tens for thousands) can take a lot of time, but I think it's provider issue, and this doesn't break anything.&lt;/p&gt;</content><category term="misc"></category></entry><entry><title>What to read #1</title><link href="https://discrimy.github.io/what-to-read-1.html" rel="alternate"></link><published>2023-07-02T12:15:49+03:00</published><updated>2023-07-02T12:15:49+03:00</updated><author><name>Alexander Bespalov</name></author><id>tag:discrimy.github.io,2023-07-02:/what-to-read-1.html</id><summary type="html">&lt;h1&gt;What to read #1&lt;/h1&gt;
+&lt;p&gt;List of links of interest materials to read with short description.&lt;/p&gt;
+&lt;h2&gt;&lt;a href="https://nadh.in/blog/fomo-yamo/"&gt;FOMO? YAMO.&lt;/a&gt;&lt;/h2&gt;
+&lt;p&gt;Hype technologies and methodologies aren't necessery.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Why is the file being rsync’d instead of an S3-Ansible-pipeline? — Why not?&lt;/p&gt;
+&lt;p&gt;Why is there a full fledged Node build environment for a page with a …&lt;/p&gt;&lt;/blockquote&gt;</summary><content type="html">&lt;h1&gt;What to read #1&lt;/h1&gt;
+&lt;p&gt;List of links of interest materials to read with short description.&lt;/p&gt;
+&lt;h2&gt;&lt;a href="https://nadh.in/blog/fomo-yamo/"&gt;FOMO? YAMO.&lt;/a&gt;&lt;/h2&gt;
+&lt;p&gt;Hype technologies and methodologies aren't necessery.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Why is the file being rsync’d instead of an S3-Ansible-pipeline? — Why not?&lt;/p&gt;
+&lt;p&gt;Why is there a full fledged Node build environment for a page with a form?&lt;/p&gt;
+&lt;p&gt;Why is the CSS hand-written (for a single page site)? — Why not?&lt;/p&gt;
+&lt;p&gt;Why is there no K8s manifest for the project? — Why should it?&lt;/p&gt;
+&lt;p&gt;Why was this desktop application (200 MB) with two buttons written in Electron?&lt;/p&gt;
+&lt;p&gt;ElasticSearch instance to make 100k items searchable. — What? Why!?&lt;/p&gt;
+&lt;p&gt;“AI/ML pipeline” for detecting anomalous (deviations from baseline prices) transactions. — What? Why!?&lt;/p&gt;
+&lt;p&gt;Why not rewrite it in Rust to make it safe? — …&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2&gt;&lt;a href="https://mcfunley.com/choose-boring-technology"&gt;Choose boring technology&lt;/a&gt;&lt;/h2&gt;
+&lt;p&gt;Master common technologies to optimize costs of research and support.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;The problem with “best tool for the job” thinking is that it takes a myopic view of the words “best” and “job.” Your job is keeping the company in business, god damn it. And the “best” tool is the one that occupies the “least worst” position for as many of your problems as possible.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;img alt="Problems vs. Technical Solutions" src="/images/problems-vs-technical-solutions.png"&gt;&lt;/p&gt;
+&lt;h2&gt;&lt;a href="https://www.joshwcomeau.com/career/clever-code-considered-harmful/"&gt;Clever Code Considered Harmful&lt;/a&gt;&lt;/h2&gt;
+&lt;p&gt;Write simple production code so junior can understand it. Concentrate complex code and build clean boundaries between complex and simple parts.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;When it comes to day-to-day production code, here's the barometer I like to use: will a junior developer, someone at the very start of their career, struggle to understand this code?&lt;/p&gt;
+&lt;p&gt;If your app is architected so that the most complex concerns are all dealt with in the same place, you can keep the overwhelming majority of your app’s surface area simple.&lt;/p&gt;
+&lt;/blockquote&gt;</content><category term="misc"></category></entry><entry><title>"Full and Partial Functions"</title><link href="https://discrimy.github.io/full-and-partial-functions.html" rel="alternate"></link><published>2023-05-08T20:29:03+03:00</published><updated>2023-05-08T20:29:03+03:00</updated><author><name>Alexander Bespalov</name></author><id>tag:discrimy.github.io,2023-05-08:/full-and-partial-functions.html</id><summary type="html">&lt;h2&gt;Full and partial functions&lt;/h2&gt;
+&lt;p&gt;Functions in programming can be splitted into two categories:
+1. Partial function - there is at least one combination of arguments that has no defined result. Usually it leads to undefined behaviour or raised exception
+&lt;img alt="" src="/images/full-and-partial-functions-partial.png"&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# What if `raw_number` cannot be parsed to integer? ValueError will be raised …&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;</summary><content type="html">&lt;h2&gt;Full and partial functions&lt;/h2&gt;
+&lt;p&gt;Functions in programming can be splitted into two categories:
+1. Partial function - there is at least one combination of arguments that has no defined result. Usually it leads to undefined behaviour or raised exception
+&lt;img alt="" src="/images/full-and-partial-functions-partial.png"&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# What if `raw_number` cannot be parsed to integer? ValueError will be raised, but it&amp;#39;s implicit result&lt;/span&gt;
+&lt;span class="n"&gt;number&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;raw_number&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Full function - every possible combination of arguments has it's own result or action:
+&lt;img alt="" src="/images/full-and-partial-functions-full.png"&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# the function returns either int or None explicitly&lt;/span&gt;
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;int_or_none&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;raw&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="k"&gt;try&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;raw&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;except&lt;/span&gt; &lt;span class="ne"&gt;ValueError&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2&gt;How partial function can be converted to full?&lt;/h2&gt;
+&lt;p&gt;It's hard to work with partial functions. You can't trust their contract (input and output types), so you have to read through it's source to make what it can make for undefined inputs, what kind of side effects produces and which exceptions rises. Let's take an example:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# that if `email` is not valid email?&lt;/span&gt;
+&lt;span class="c1"&gt;# `delete_older_than` must has a format &amp;#39;YYYY-MM-DD&amp;#39;, but what if it&amp;#39;s not?&lt;/span&gt;
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;cleanup_email_folder&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;email&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;delete_older_than&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3&gt;Weaking result type&lt;/h3&gt;
+&lt;p&gt;We can map undefined input combinations to different input type like &lt;code&gt;None&lt;/code&gt; or &lt;code&gt;Result[Error]&lt;/code&gt;. &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# returns `ValueError` if `email` or `delete_older_than` have incorrect format&lt;/span&gt;
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;cleanup_email_folder&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;email&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;delete_older_than&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Result&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="ne"&gt;ValueError&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;It's a simple solution, but has some problems:
+1. We should don't forget to check return type of function. In this example, it's easy to just call it and don't check the result.
+2. That if caller already checked provided arguments elsewhere? In this case, function's checks become redundant.
+3. The command is responsible for checking input arguments checking and the cleanuping itself.&lt;/p&gt;
+&lt;h3&gt;Strengthing input types&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;Email&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="fm"&gt;__init__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;input&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;_chech_is_valid_email&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nb"&gt;input&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+        &lt;span class="nb"&gt;super&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="fm"&gt;__init__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nb"&gt;input&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="c1"&gt;# the function recieves `Email` instance, so it can be sure it&amp;#39;s valid email&lt;/span&gt;
+&lt;span class="c1"&gt;# `delete_older_than` is `datetime`, so the function can format it inside and can be sure it&amp;#39;s actually some point in time&lt;/span&gt;
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;cleanup_email_folder&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;email&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Email&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;delete_older_than&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;datetime&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;datetime&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Strengthing input types means eliminating undefined input arguments, so function can't be called using them. Usually it accomplished using more specific type or creating custom type that can be created if all checks passed already.&lt;/p&gt;
+&lt;p&gt;The second appoach solves all three problems of previous solution:
+1. Caller cannot forget to check input arguments because instance of specific instance is a proof the argument is correct.
+2. Caller can create instance somewhere in the code and use it any times, so there is no check duplication
+3. The function itself is no longer responsible for format checking argument's correctness.&lt;/p&gt;
+&lt;p&gt;But this way of converting partial functions to full has it's own disadvantage. Sometimes it's hard to split value checking from it's actual usage. For example, &lt;code&gt;email&lt;/code&gt; can doesn't exist in email server, so we can combine both methods to make function full and more explicit:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# we state the function can returns `EmailServerError` explicitly&lt;/span&gt;
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;cleanup_email_folder&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;email&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Email&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;delete_older_than&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;datetime&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;datetime&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Result&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;EmailServerError&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2&gt;Sources&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/"&gt;Original article, gives explanations on context of Haskell&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><category term="misc"></category></entry><entry><title>Parse, Don't Validate</title><link href="https://discrimy.github.io/parse-dont-validate.html" rel="alternate"></link><published>2023-05-08T20:27:18+03:00</published><updated>2023-05-08T20:27:18+03:00</updated><author><name>Alexander Bespalov</name></author><id>tag:discrimy.github.io,2023-05-08:/parse-dont-validate.html</id><summary type="html">&lt;h1&gt;Parse, don't validate&lt;/h1&gt;
+&lt;p&gt;That the difference between parsing and validation? Well, let's give definitions for both of them.
+- Parsing - converting some less structural data to some more structures. For example, converting &lt;code&gt;str&lt;/code&gt; to &lt;code&gt;int&lt;/code&gt; or json via &lt;code&gt;json.loads&lt;/code&gt; it a parsing, not every &lt;code&gt;string&lt;/code&gt; can be converted to them …&lt;/p&gt;</summary><content type="html">&lt;h1&gt;Parse, don't validate&lt;/h1&gt;
+&lt;p&gt;That the difference between parsing and validation? Well, let's give definitions for both of them.
+- Parsing - converting some less structural data to some more structures. For example, converting &lt;code&gt;str&lt;/code&gt; to &lt;code&gt;int&lt;/code&gt; or json via &lt;code&gt;json.loads&lt;/code&gt; it a parsing, not every &lt;code&gt;string&lt;/code&gt; can be converted to them.
+- Validation - checking some data is in some subset of valid format. For example, validation &lt;code&gt;str&lt;/code&gt; is a number can be achived by checking that every character is a digit.&lt;/p&gt;
+&lt;p&gt;But what the significant difference between using one or another?&lt;/p&gt;
+&lt;h2&gt;Preserving validation information&lt;/h2&gt;
+&lt;p&gt;Parsing means converting less structured information to more structured. It means parsing preserves that the data has correct format. Validation just returns the answer to question "Is the provided data has correct format or not?", but the data doesn't change.&lt;/p&gt;
+&lt;p&gt;We can look at this in terms of proof. If we parsed some raw data, then the parsed instance is a proof that the data is correct. If we validate some raw data, then the proof is implicit, there'is no way to express it in code.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# returns True if phone is valid, but phone itself will be unchanged&lt;/span&gt;
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;is_phone&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;raw&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="nb"&gt;bool&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;is_phone&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;phone&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+
+&lt;span class="c1"&gt;# `Phone` instance preserves that provided string is actual a phone number&lt;/span&gt;
+&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;Phone&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="fm"&gt;__init__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;raw&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;_check_is_phone&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;raw&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+        &lt;span class="nb"&gt;super&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="fm"&gt;__init__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;raw&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;phone&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Phone&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;phone&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2&gt;Sources&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/"&gt;Original article, gives explanations on context of Haskell&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://www.reddit.com/r/typescript/comments/zm9st3/comment/j0bbpa7/?utm_source=share&amp;amp;utm_medium=web2x&amp;amp;context=3"&gt;Parsed value is a proof (comment on Reddit)&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><category term="misc"></category></entry><entry><title>pre-commit Advices</title><link href="https://discrimy.github.io/pre-commit-advices.html" rel="alternate"></link><published>2023-04-26T20:18:17+03:00</published><updated>2023-04-26T20:18:17+03:00</updated><author><name>Alexander Bespalov</name></author><id>tag:discrimy.github.io,2023-04-26:/pre-commit-advices.html</id><summary type="html">&lt;h2&gt;What is pre-commit&lt;/h2&gt;
+&lt;p&gt;At first, let me remind what pre-commit is.
+&lt;a href="https://pre-commit.com"&gt;pre-commit&lt;/a&gt; is a tool to manage git hooks inside your projects, package them and import them from other sources. Also it make very convinient to manage them using it's declarative YAML configuration.&lt;/p&gt;
+&lt;p&gt;Git hooks are useful if you have …&lt;/p&gt;</summary><content type="html">&lt;h2&gt;What is pre-commit&lt;/h2&gt;
+&lt;p&gt;At first, let me remind what pre-commit is.
+&lt;a href="https://pre-commit.com"&gt;pre-commit&lt;/a&gt; is a tool to manage git hooks inside your projects, package them and import them from other sources. Also it make very convinient to manage them using it's declarative YAML configuration.&lt;/p&gt;
+&lt;p&gt;Git hooks are useful if you have some linters/formatters, and you want to make sure your commited changes are checked by your dev tools.&lt;/p&gt;
+&lt;h2&gt;Advices&lt;/h2&gt;
+&lt;h3&gt;Prefer system hooks over hooks managed by pre-commit&lt;/h3&gt;
+&lt;p&gt;pre-commit suggests to use their environment management for hooks:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="p p-Indicator"&gt;-&lt;/span&gt;&lt;span class="w"&gt;   &lt;/span&gt;&lt;span class="nt"&gt;repo&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l l-Scalar l-Scalar-Plain"&gt;https://github.com/psf/black&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="nt"&gt;rev&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l l-Scalar l-Scalar-Plain"&gt;22.10.0&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="nt"&gt;hooks&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="p p-Indicator"&gt;-&lt;/span&gt;&lt;span class="w"&gt;   &lt;/span&gt;&lt;span class="nt"&gt;id&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l l-Scalar l-Scalar-Plain"&gt;black&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Inside &lt;code&gt;black&lt;/code&gt; repo there is defined hook that will be installed in separate python virtual environment alongside with it's dependencies. It may look good from programmer's perspective, but it introduces two problems:
+- You can't run the linter/formatter by yourself. Especially it's useful with formatters, so you have to format code by yourself. Of course you can install the same tool using another package manager, but it leads to another problem.
+- If you have tool installed via &lt;code&gt;pre-commit&lt;/code&gt; and another package manager, then their versions can differ. It applies to list of plugins too, so you can end to have a different set of linters with their plugins inside &lt;code&gt;pre-commit&lt;/code&gt; and your dev environment.&lt;/p&gt;
+&lt;p&gt;The solution is simple: &lt;strong&gt;install tools outside pre-commit and use &lt;code&gt;language: system&lt;/code&gt; to run them&lt;/strong&gt;. For example, we're using &lt;code&gt;poetry&lt;/code&gt; as package manager, so we use something like this:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="p p-Indicator"&gt;-&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;repo&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l l-Scalar l-Scalar-Plain"&gt;local&lt;/span&gt;
+&lt;span class="w"&gt;  &lt;/span&gt;&lt;span class="nt"&gt;hooks&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="p p-Indicator"&gt;-&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;id&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l l-Scalar l-Scalar-Plain"&gt;black&lt;/span&gt;
+&lt;span class="w"&gt;      &lt;/span&gt;&lt;span class="nt"&gt;entry&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l l-Scalar l-Scalar-Plain"&gt;poetry run black&lt;/span&gt;&lt;span class="w"&gt;  &lt;/span&gt;&lt;span class="c1"&gt;# poetry run ... ensures to run command inside it&amp;#39;s venv&lt;/span&gt;
+&lt;span class="w"&gt;      &lt;/span&gt;&lt;span class="nt"&gt;language&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l l-Scalar l-Scalar-Plain"&gt;system&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;It uses the same &lt;code&gt;black&lt;/code&gt; as you have inside &lt;code&gt;venv&lt;/code&gt;. The same applies to &lt;code&gt;flake8&lt;/code&gt; and it's plugins.&lt;/p&gt;
+&lt;h3&gt;pre-commit and CI&lt;/h3&gt;
+&lt;p&gt;CI is a place where our code is checked, built, tested and deployed. And it's important to ensure checks which are ran locally on developers' machines and checks inside CI are the same. So &lt;code&gt;lint&lt;/code&gt; job should consist of &lt;code&gt;pre-commit&lt;/code&gt; calling only. &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;pre-commit&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;--all&lt;span class="w"&gt; &lt;/span&gt;--verbose
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Of course base &lt;code&gt;Docker&lt;/code&gt; image must provide &lt;code&gt;pre-commit&lt;/code&gt; command. For &lt;code&gt;Python&lt;/code&gt;-based projects you can use your package manager (&lt;code&gt;poetry&lt;/code&gt; in dev section for example), install it via &lt;code&gt;pip&lt;/code&gt; or some other way.&lt;/p&gt;</content><category term="misc"></category></entry></feed>
