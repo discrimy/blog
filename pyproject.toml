@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "discrimy-github-io"
+version = "0.1.0"
+description = "Bespealex's blog"
+authors = ["Alexander Bespalov <discrimy.off@gmail.com>"]
+readme = "README.md"
+packages = [{include = "discrimy"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pelican = {extras = ["markdown"], version = "^4.9.1"}
+ghp-import = "^2.1.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
